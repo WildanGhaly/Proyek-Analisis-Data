@@ -15,6 +15,7 @@
 9. Conclusion
 
 ## Dashboard
+https://bike-sharing-24.streamlit.app/
 
 ## Local dashboard
 ```
