@@ -37,6 +37,27 @@ st.write("Total Records:", day_df.shape[0])
 st.write("Total Columns:", day_df.shape[1])
 st.write("Missing Values:", day_df.isnull().sum().sum())
 
+# Filter by date
+st.sidebar.header("Filter by Date")
+selected_date = st.sidebar.date_input("Select a date:", value=pd.to_datetime("2011-01-01"), min_value=day_df['dteday'].min(), max_value=day_df['dteday'].max())
+
+# Filter data based on selected date
+filtered_hour_df = hour_df[hour_df['dteday'] == pd.to_datetime(selected_date)]
+filtered_day_df = day_df[day_df['dteday'] == pd.to_datetime(selected_date)]
+
+# Display filtered data
+if not filtered_hour_df.empty:
+    st.subheader(f"Filtered Hourly Data for {selected_date}")
+    st.write(filtered_hour_df)
+
+# Filter by season
+st.sidebar.header("Filter by Season")
+selected_season = st.sidebar.selectbox("Select a season:", options=['All', 'Spring', 'Summer', 'Fall', 'Winter'])
+
+if selected_season != 'All':
+    season_mapping = {'Spring': 1, 'Summer': 2, 'Fall': 3, 'Winter': 4}
+    filtered_day_df = day_df[day_df['season'] == season_mapping[selected_season]]
+
 # Distribution Plots
 st.header("Distribution of Bike Rentals")
 fig, ax = plt.subplots(1, 2, figsize=(12, 6))
@@ -66,21 +87,64 @@ st.pyplot(fig_seasonal)
 hour_df['is_weekend'] = hour_df['weekday'].apply(lambda x: 1 if x in [5, 6] else 0)
 hourly_rentals = hour_df.groupby(['hr', 'is_weekend'])['cnt'].sum().unstack()
 
+# Average hourly rentals
+average_hourly_rentals = hourly_rentals / day_df.groupby('weekday').count()['dteday'].max()
+
 fig_hourly = plt.figure(figsize=(12, 6))
-hourly_rentals.plot(kind='bar', ax=plt.gca())
-plt.title('Total Peminjaman Sepeda berdasarkan Jam (Hari Kerja vs Akhir Pekan)')
+average_hourly_rentals.plot(kind='bar', ax=plt.gca())
+plt.title('Rata-rata Peminjaman Sepeda berdasarkan Jam (Hari Kerja vs Akhir Pekan)')
 plt.xlabel('Jam di satu hari')
-plt.ylabel('Total Peminjaman')
+plt.ylabel('Rata-rata Peminjaman')
 plt.xticks(rotation=0)
 plt.legend(['Hari Kerja', 'Akhir Pekan'])
 st.pyplot(fig_hourly)
+
+# Average rentals by weather
+weather_rentals = day_df.groupby('weathersit')['cnt'].mean().reset_index()
+fig_weather = plt.figure(figsize=(8, 5))
+sns.barplot(x='weathersit', y='cnt', data=weather_rentals)
+plt.title('Rata-rata Peminjaman Sepeda berdasarkan Kondisi Cuaca')
+plt.xlabel('Kondisi Cuaca (1: Clear, 2: Misty, 3: Light Rain, 4: Heavy Rain)')
+plt.ylabel('Rata-rata Peminjaman')
+plt.xticks(ticks=[0, 1, 2, 3], labels=['Jernih', 'Kabut', 'Hujan Ringan', 'Hujan Berat'])
+st.pyplot(fig_weather)
+
+# Yearly Trends
+st.header("Perbandingan Peminjaman Berdasarkan Tahun")
+yearly_rentals = day_df.groupby('yr')['cnt'].sum().reset_index()
+fig_yearly = plt.figure(figsize=(8, 5))
+sns.barplot(x='yr', y='cnt', data=yearly_rentals)
+plt.title('Total Peminjaman Sepeda Berdasarkan Tahun')
+plt.xlabel('Tahun')
+plt.ylabel('Total Peminjaman')
+st.pyplot(fig_yearly)
+
+# Monthly Trends
+st.header("Tren Peminjaman Berdasarkan Bulan")
+monthly_rentals = day_df.groupby('mnth')['cnt'].sum().reset_index()
+fig_monthly = plt.figure(figsize=(10, 5))
+sns.barplot(x='mnth', y='cnt', data=monthly_rentals)
+plt.title('Total Peminjaman Sepeda Berdasarkan Bulan')
+plt.xlabel('Bulan (1: Jan, 2: Feb, ..., 12: Des)')
+plt.ylabel('Total Peminjaman')
+plt.xticks(ticks=np.arange(0, 12, 1), labels=['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'])
+st.pyplot(fig_monthly)
+
+# Correlation Analysis
+correlation_matrix = day_df.corr()
+fig_corr = plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm', square=True, cbar_kws={"shrink": .8})
+plt.title('Matriks Korelasi')
+st.pyplot(fig_corr)
 
 # Conclusions
 st.header("Insights & Conclusions")
 st.write("1. Total peminjaman sepeda terbanyak berada pada musim gugur (fall).")
 st.write("2. Total peminjaman sepeda paling sedikit berada pada musim semi (spring).")
-st.write("3. Peminjaman sepeda pada hari kerja memiliki grafik yang mirip dengan akhir pekan namun dengan peningkatan signifikan pada jam 17.")
-st.write("4. Semakin mendekati angka 1, semakin kuat korelasi positif antara dua variabel.")
-st.write("5. Kebanyakan sepeda yang dipinjam ada di waktu siang hari.")
-st.write("6. Musim mempengaruhi jumlah peminjaman sepeda dengan tren yang konsisten.")
-
+st.write("3. Rata-rata peminjaman sepeda pada akhir pekan menunjukkan peningkatan signifikan pada jam 17, yang merupakan waktu pulang kerja.")
+st.write("4. Terdapat hubungan yang signifikan antara temperatur dan jumlah peminjaman; semakin tinggi temperatur, semakin banyak orang yang meminjam sepeda.")
+st.write("5. Tren peminjaman terlihat meningkat dari tahun ke tahun, menunjukkan popularitas layanan peminjaman sepeda yang terus berkembang.")
+st.write("6. Peminjaman bulanan menunjukkan pola musiman, dengan bulan-bulan hangat (Mei - Sep) menunjukkan rata-rata peminjaman yang lebih tinggi.")
+st.write("7. Cuaca berpengaruh besar terhadap peminjaman sepeda, dengan kondisi cuaca yang cerah (1) menghasilkan rata-rata peminjaman jauh lebih tinggi dibandingkan dengan kondisi hujan.")
+st.write("8. Pemahaman yang lebih baik tentang pola, waktu, dan kondisi yang mempengaruhi peminjaman sepeda dapat membantu pengelola layanan peminjaman sepeda dalam merencanakan strategi dan meningkatkan layanan.")
+# Halo kak, terima kasih feedbacknya
